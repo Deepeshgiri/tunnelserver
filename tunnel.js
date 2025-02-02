@@ -8,14 +8,26 @@ const io = new Server(server);
 
 let clientSocket = null;
 
+// WebSocket connection for the local client
 io.on("connection", (socket) => {
   console.log("Client connected");
   clientSocket = socket;
+
+  socket.on("disconnect", () => {
+    console.log("Client disconnected");
+    clientSocket = null;
+  });
 });
 
+// Test endpoint to check if Vercel API is working
+app.get("/test", (req, res) => {
+  res.json({ status: "Vercel server is running!" });
+});
+
+// Proxy request handler
 app.use("/proxy/:service", async (req, res) => {
   if (!clientSocket) {
-    return res.status(500).send("Tunnel not connected");
+    return res.status(500).json({ error: "Tunnel not connected" });
   }
 
   const service = req.params.service;
@@ -26,4 +38,5 @@ app.use("/proxy/:service", async (req, res) => {
   });
 });
 
+// Start server
 server.listen(3000, () => console.log("Server running on port 3000"));
