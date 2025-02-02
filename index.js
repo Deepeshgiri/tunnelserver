@@ -5,7 +5,7 @@ import { Server } from "socket.io";
 const app = express();
 const server = createServer(app);
 const io = new Server(server);
-
+const port = process.env.PORT || 3000;
 let clientSocket = null;
 
 // WebSocket connection for the local client
@@ -39,4 +39,4 @@ app.use("/proxy/:service", async (req, res) => {
 });
 
 // Start server
-server.listen(3000, () => console.log("Server running on port 3000"));
+server.listen(port, () => console.log("Server running on port 3000"));
