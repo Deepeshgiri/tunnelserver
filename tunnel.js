@@ -1,56 +1,43 @@
 import axios from 'axios';
 
-// Store for local services (you can expand this for more users or services)
-let localServices = [];
+// Hardcoded local service details for different services (Apache, React, Angular)
+const localServices = {
+  'apache': { localIp: 'localhost', exposedPort: 80 },
+  'react': { localIp: 'localhost', exposedPort: 3000 },
+  'angular': { localIp: 'localhost', exposedPort: 4200 },
+};
 
-// Vercel handler for registration and forwarding requests
 export default async function handler(req, res) {
-  if (req.method === 'POST' && req.url === '/api/register') {
-    // Registering a local service (Apache, React, Angular)
-    const { tunnelId, localIp, exposedPort } = req.body;
+  if (req.method === 'GET' || req.method === 'POST') {
+    const tunnelId = req.url.split('/')[2]; // Extract the service name (tunnelId)
 
-    // Validate the data
-    if (!tunnelId || !localIp || !exposedPort) {
-      return res.status(400).json({ message: 'Missing required fields (tunnelId, localIp, exposedPort)' });
-    }
-
-    // Register the service
-    localServices.push({ tunnelId, localIp, exposedPort });
-    console.log(`Service registered: ${tunnelId} -> ${localIp}:${exposedPort}`);
-
-    return res.status(200).json({ message: 'Service registered successfully' });
-  }
-
-  if (req.method === 'GET' && req.url.startsWith('/api/proxy/')) {
-    // Proxying requests from Vercel to local services
-    const tunnelId = req.url.split('/')[3]; // Extract tunnelId from URL
-
-    // Find the service based on tunnelId
-    const service = localServices.find(s => s.tunnelId === tunnelId);
+    // Check if the service exists in the predefined list
+    const service = localServices[tunnelId];
 
     if (!service) {
-      return res.status(404).json({ message: 'Service not found for this tunnelId' });
+      return res.status(404).json({ message: `Service not found for tunnelId: ${tunnelId}` });
     }
 
-    // Forward the request to the corresponding local service
+    // Construct the URL for the local service
+    const localUrl = `http://${service.localIp}:${service.exposedPort}${req.url.replace(`/api/proxy/${tunnelId}`, '')}`;
+
     try {
+      // Forward the request to the appropriate local service
       const response = await axios({
         method: req.method,
-        url: `http://${service.localIp}:${service.exposedPort}${req.url}`,
+        url: localUrl,
         headers: req.headers,
         data: req.body,
       });
 
-      // Send the response from the local service back to the user
+      // Return the local service's response back to the client
       res.status(response.status).send(response.data);
     } catch (error) {
       console.error('Error forwarding request:', error);
       res.status(500).json({ message: 'Error forwarding request' });
     }
-  }
-
-  else {
-    // Return 405 if method is not allowed
+  } else {
+    // Handle unsupported methods (405)
     res.status(405).json({ message: 'Method not allowed' });
   }
 }
